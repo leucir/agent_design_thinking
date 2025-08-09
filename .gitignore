@@ -15,6 +15,3 @@ venv.bak/
 
 #All .pyc files
 **/*.pyc
-
-
-models.py
