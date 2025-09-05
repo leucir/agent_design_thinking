@@ -21,5 +21,5 @@ agent_config = {
 
 
 enable_debug = {
-    "DEBUG": True
+    "DEBUG": False
 }

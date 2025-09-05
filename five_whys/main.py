@@ -7,10 +7,10 @@ def main():
     """Example usage of the 5 Whys agent"""
     
     # Initialize the agent
-    agent = FiveWhysAgent(llm=MODELS["PUBLIC_OPENAI_GPT4O"])
+    agent = FiveWhysAgent(llm=MODELS["LMSTUDIO_PHI4"])
     
     # Define a problem
-    problem = "I have some stocks of Paypal and they are down. Any recommendations?"
+    problem = "Cancer is a disease that affects the body. Why is it so common?"
     
     # Run the analysis
     print("🔍 Starting 5 Whys Analysis...")

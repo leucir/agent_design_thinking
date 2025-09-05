@@ -39,13 +39,22 @@ MODELS = {
             temperature=0.8,
         ),
     "LMSTUDIO_PHI4": 
-        OpenAI(
+        ChatOpenAI(
             model="microsoft/phi-4-reasoning-plus",
             api_key="PLACEHOLDER",
             base_url="http://127.0.0.1:1234/v1",
             streaming=False,
             temperature=0.8,
             max_tokens=2000,
+        ),
+    "LMSTUDIO_GPT_OSS_20B":
+        OpenAI(
+            model="openai/gpt-oss-20b",
+            api_key="PLACEHOLDER",
+            base_url="http://127.0.0.1:1234/v1",
+            streaming=False,
+            temperature=0.8,
+            max_tokens=20000,
         ),
     "PUBLIC_OPENAI_GPT4O":
         ChatOpenAI(

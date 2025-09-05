@@ -15,13 +15,6 @@ Your task is to:
 2. Identify any assumptions that need to be validated
 3. Suggest what evidence or data might be helpful
 
-Respond with a JSON object:
-{
-    "clarified_problem": "<clear, specific problem statement>",
-    "assumptions": ["<assumption1>", "<assumption2>"],
-    "evidence_needed": ["<evidence1>", "<evidence2>"],
-    "stakeholders_to_involve": ["<stakeholder1>", "<stakeholder2>"]
-}
 """
 
 

@@ -14,7 +14,7 @@ from prompts import (
     format_why_question_chain_prompt
 )
 
-from structure_outputs import CauseAnalysisOutput, ValidationOutput, SolutionOutput
+from structure_outputs import CauseAnalysisOutput, ValidationOutput, SolutionOutput, ClarificationOutput
 from models import MODELS
 from state import FiveWhysState
 from typing import Dict, Any, List, Literal
@@ -22,6 +22,7 @@ import json
 import time
 from tools import web_search
 from config import agent_config
+from tenacity import retry, stop_after_attempt, wait_random_exponential
 
 
 """
@@ -122,14 +123,17 @@ class FiveWhysAgent:
             HumanMessage(content=f"Problem: {state['problem_statement']}")
         ]
         
-        response = self.llm.invoke(messages)
+        model_with_structure = self.llm.with_structured_output(ClarificationOutput)
+        
+        response = model_with_structure.invoke(messages)
         
         try:
-            clarification = json.loads(str(response.content))
-            state["problem_statement"] = clarification.get("clarified_problem", state["problem_statement"])
-            state["assumptions_made"] = clarification.get("assumptions", [])
-            state["evidence_needed"] = clarification.get("evidence_needed", [])
-        except json.JSONDecodeError:
+            # response is already a ClarificationOutput object
+            state["problem_statement"] = response.clarified_problem or state["problem_statement"]
+            state["assumptions_made"] = response.assumptions or []
+            state["evidence_needed"] = response.evidence_needed or []
+        except Exception as e:
+            state["errors"].append(f"Failed to parse clarification response: {str(e)}")
             state["problem_statement"] = state["problem_statement"]
         
         # Initialize first "why"
@@ -177,35 +181,32 @@ class FiveWhysAgent:
         response = model_with_structure.invoke(messages)
         
         try:
-
-            analysis = json.loads(str(CauseAnalysisOutput.model_dump_json(response)))
-            
-            # Store the primary cause
-            primary_cause = analysis.get("primary_cause", "Unknown cause")
+            # response is already a CauseAnalysisOutput object
+            primary_cause = response.primary_cause or "Unknown cause"
             state["why_answers"].append(primary_cause)
             
             # Store the question-answer pair
             state["why_chain"].append({
                 "question": current_question,
                 "answer": primary_cause,
-                "evidence": analysis.get("evidence", ""),
-                "alternatives": analysis.get("alternative_causes", []),
+                "evidence": response.evidence or "",
+                "alternatives": response.alternative_causes or [],
                 "level": state["current_why_level"]
             })
             
             # Store quality metrics
-            confidence = analysis.get("confidence_level", 0.5)
+            confidence = response.confidence_level or 0.5
             state["depth_scores"].append(confidence)
             
             # Store evidence
-            if analysis.get("evidence"):
-                state["evidence_gathered"].append(analysis["evidence"])
+            if response.evidence:
+                state["evidence_gathered"].append(response.evidence)
             
             # Update current focus
             state["current_focus"] = primary_cause
             
-        except json.JSONDecodeError:
-            state["errors"].append("Failed to parse cause analysis response")
+        except Exception as e:
+            state["errors"].append(f"Failed to parse cause analysis response: {str(e)}")
         
         return state
 
@@ -242,22 +243,28 @@ class FiveWhysAgent:
         response = model_with_structure.invoke(messages)
         
         try:
-            validation = json.loads(str(ValidationOutput.model_dump_json(response)))
+            # response is already a ValidationOutput object
+            validation = {
+                "is_root_cause_likely": response.is_root_cause_likely,
+                "chain_validity": response.chain_validity,
+                "actionability": response.actionability,
+                "improvement_suggestions": response.improvement_suggestions or []
+            }
             state["validation_results"].append(validation)
             
             # Store suggestions for improvement
-            if validation.get("improvement_suggestions"):
-                state["refinement_suggestions"].extend(validation["improvement_suggestions"])
+            if response.improvement_suggestions:
+                state["refinement_suggestions"].extend(response.improvement_suggestions)
             
             # Update quality scores
-            if validation.get("chain_validity"):
-                state["relevance_scores"].append(validation["chain_validity"])
+            if response.chain_validity is not None:
+                state["relevance_scores"].append(response.chain_validity)
             
-            if validation.get("actionability"):
-                state["actionability_scores"].append(validation["actionability"])
+            if response.actionability is not None:
+                state["actionability_scores"].append(response.actionability)
             
-        except json.JSONDecodeError:
-            state["errors"].append("Failed to parse validation response")
+        except Exception as e:
+            state["errors"].append(f"Failed to parse validation response: {str(e)}")
         
         return state
 
@@ -311,13 +318,20 @@ class FiveWhysAgent:
         response = model_with_structure.invoke(messages)
         
         try:
-            solutions = json.loads(str(SolutionOutput.model_dump_json(response)))
-            state["potential_solutions"] = solutions.get("immediate_actions", [])
-            state["recommended_actions"] = solutions.get("preventive_measures", [])
-            state["solution_details"] = solutions
+            # response is already a SolutionOutput object
+            state["potential_solutions"] = response.immediate_actions or []
+            state["recommended_actions"] = response.preventive_measures or []
+            state["solution_details"] = {
+                "immediate_actions": response.immediate_actions or [],
+                "preventive_measures": response.preventive_measures or [],
+                "monitoring_strategies": response.monitoring_strategies or [],
+                "alternative_approaches": response.alternative_approaches or [],
+                "success_metrics": response.success_metrics or [],
+                "timeline": response.timeline or ""
+            }
             
-        except json.JSONDecodeError:
-            state["errors"].append("Failed to parse solution response")
+        except Exception as e:
+            state["errors"].append(f"Failed to parse solution response: {str(e)}")
         
         return state
 
@@ -398,6 +412,7 @@ class FiveWhysAgent:
 
 
     # Main interface
+    #@retry(stop=stop_after_attempt(4), wait=wait_random_exponential(min=1, max=60))
     def analyze(self, problem: str, max_whys: int = 5) -> Dict[str, Any]:
         """Run the 5 Whys analysis"""
         

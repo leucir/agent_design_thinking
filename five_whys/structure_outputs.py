@@ -51,3 +51,15 @@ class WebSearchOutput(BaseModel):
     search_time: str = Field(description="Search time")
     search_engine: str = Field(description="Search engine")
     search_url: str = Field(description="Search URL")
+
+
+
+
+class ClarificationOutput(BaseModel):
+    """
+    This is the output structure for the clarification node.
+    """
+    clarified_problem: str = Field(description="The clarified problem statement")
+    assumptions: list[str] = Field(description="Assumptions")
+    evidence_needed: list[str] = Field(description="Evidence needed")
+    stakeholders_to_involve: list[str] = Field(description="Stakeholders to involve")
