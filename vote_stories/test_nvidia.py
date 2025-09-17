@@ -6,7 +6,7 @@ from openai import AsyncOpenAI
 from agents import Agent, OpenAIChatCompletionsModel, Runner, function_tool, set_tracing_disabled
 
 BASE_URL = os.getenv("EXAMPLE_BASE_URL") or "https://integrate.api.nvidia.com/v1"
-API_KEY = os.getenv("EXAMPLE_API_KEY") or "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"
+API_KEY = os.getenv("EXAMPLE_API_KEY") or ""
 MODEL_NAME = os.getenv("EXAMPLE_MODEL_NAME") or "openai/gpt-oss-20b"
 
 if not BASE_URL or not API_KEY or not MODEL_NAME:
